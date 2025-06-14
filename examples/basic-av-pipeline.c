@@ -1,6 +1,7 @@
 #include <gst/gst.h>
 
-typedef struct _CustomData {
+typedef struct _CustomData
+{
   GstElement *pipeline;
   GstElement *source;
   GstElement *audio_convert;
@@ -9,9 +10,12 @@ typedef struct _CustomData {
   GstElement *video_sink;
 } CustomData;
 
-static void pad_added_handler (GstElement *src, GstPad *pad, CustomData *data);
+static void pad_added_handler (GstElement * src, GstPad * pad,
+    CustomData * data);
 
-int main(int argc, char *arvg[]) {
+int
+main (int argc, char *arvg[])
+{
   CustomData data;
   GstBus *bus;
   GstMessage *msg;
@@ -21,35 +25,42 @@ int main(int argc, char *arvg[]) {
   gst_init (&argc, &arvg);
 
   data.source = gst_element_factory_make ("uridecodebin", "source");
-  data.audio_convert = gst_element_factory_make ("audioconvert", "audio-convert");
-  data.video_convert = gst_element_factory_make ("videoconvert", "video-convert");
+  data.audio_convert =
+      gst_element_factory_make ("audioconvert", "audio-convert");
+  data.video_convert =
+      gst_element_factory_make ("videoconvert", "video-convert");
   data.audio_sink = gst_element_factory_make ("autoaudiosink", "audio-sink");
   data.video_sink = gst_element_factory_make ("autovideosink", "video-sink");
 
   data.pipeline = gst_pipeline_new ("stream-pipeline");
 
-  if (!data.pipeline || !data.source || !data.audio_convert || !data.video_convert || !data.audio_sink || !data.video_sink) {
+  if (!data.pipeline || !data.source || !data.audio_convert
+      || !data.video_convert || !data.audio_sink || !data.video_sink) {
     g_printerr ("Not all elements could be created. \n");
     return -1;
   }
 
-  gst_bin_add_many (GST_BIN (data.pipeline), data.source, data.audio_convert, data.video_convert, data.audio_sink, data.video_sink, NULL);
+  gst_bin_add_many (GST_BIN (data.pipeline), data.source, data.audio_convert,
+      data.video_convert, data.audio_sink, data.video_sink, NULL);
 
   if (!gst_element_link_many (data.audio_convert, data.audio_sink, NULL)) {
     g_printerr ("Audio elements could not be linked. \n");
     gst_object_unref (data.pipeline);
     return -1;
   }
-  
+
   if (!gst_element_link_many (data.video_convert, data.video_sink, NULL)) {
     g_printerr ("Video elements could not be linked. \n");
     gst_object_unref (data.pipeline);
     return -1;
   }
 
-  g_object_set (data.source, "uri", "https://gstreamer.freedesktop.org/data/media/sintel_trailer-480p.webm", NULL);
+  g_object_set (data.source, "uri",
+      "https://gstreamer.freedesktop.org/data/media/sintel_trailer-480p.webm",
+      NULL);
 
-  g_signal_connect (data.source, "pad-added", G_CALLBACK (pad_added_handler), &data);
+  g_signal_connect (data.source, "pad-added", G_CALLBACK (pad_added_handler),
+      &data);
 
   ret = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
   if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -57,7 +68,7 @@ int main(int argc, char *arvg[]) {
     gst_object_unref (data.pipeline);
     return -1;
   }
-  
+
   bus = gst_element_get_bus (data.pipeline);
   do {
     msg = gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE,
@@ -70,27 +81,31 @@ int main(int argc, char *arvg[]) {
       switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_ERROR:
           gst_message_parse_error (msg, &err, &debug_info);
-	  g_printerr ("Error received from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
-	  g_printerr ("Debugging information: %s\n", debug_info ? debug_info : "none");
-	  g_clear_error (&err);
-	  g_free (debug_info);
-	  terminate = TRUE;
-	  break;
-	case GST_MESSAGE_EOS:
-	  g_print ("End-Of-Stream reached.\n");
-	  terminate = TRUE;
-	  break;
-	case GST_MESSAGE_STATE_CHANGED:
+          g_printerr ("Error received from element %s: %s\n",
+              GST_OBJECT_NAME (msg->src), err->message);
+          g_printerr ("Debugging information: %s\n",
+              debug_info ? debug_info : "none");
+          g_clear_error (&err);
+          g_free (debug_info);
+          terminate = TRUE;
+          break;
+        case GST_MESSAGE_EOS:
+          g_print ("End-Of-Stream reached.\n");
+          terminate = TRUE;
+          break;
+        case GST_MESSAGE_STATE_CHANGED:
           if (GST_MESSAGE_SRC (msg) == GST_OBJECT (data.pipeline)) {
             GstState old_state, new_state, pending_state;
-            gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
+            gst_message_parse_state_changed (msg, &old_state, &new_state,
+                &pending_state);
             g_print ("Pipeline state changed from %s to %s:\n",
-                gst_element_state_get_name (old_state), gst_element_state_get_name (new_state));
+                gst_element_state_get_name (old_state),
+                gst_element_state_get_name (new_state));
           }
           break;
-	default:
-	  g_printerr ("Unexpected message received.\n");
-	  break;
+        default:
+          g_printerr ("Unexpected message received.\n");
+          break;
       }
       gst_message_unref (msg);
     }
@@ -102,14 +117,17 @@ int main(int argc, char *arvg[]) {
   return 0;
 }
 
-static void pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *data) {
+static void
+pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *data)
+{
   GstPad *sink_pad;
   GstPadLinkReturn ret;
   GstCaps *new_pad_caps = NULL;
   GstStructure *new_pad_struct = NULL;
   const gchar *new_pad_type = NULL;
 
-  g_print ("Received new pad '%s' from '%s':\n", GST_PAD_NAME (new_pad), GST_ELEMENT_NAME (src));
+  g_print ("Received new pad '%s' from '%s':\n", GST_PAD_NAME (new_pad),
+      GST_ELEMENT_NAME (src));
 
   if (gst_pad_is_linked (sink_pad)) {
     g_print ("We are already linked. Ignoring.\n");
@@ -126,7 +144,9 @@ static void pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *dat
     sink_pad = gst_element_get_static_pad (data->video_convert, "sink");
     g_print ("It has type '%s' which is raw video", new_pad_type);
   } else {
-    g_print ("It has type '%s' which is not raw audio and raw video. Ignoring.\n", new_pad_type);
+    g_print
+        ("It has type '%s' which is not raw audio and raw video. Ignoring.\n",
+        new_pad_type);
     goto exit;
   }
 
